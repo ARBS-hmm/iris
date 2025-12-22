@@ -1,5 +1,4 @@
 module Gamma
-import Data.Fin
 
 data Level : Type where
   LZ : Level
