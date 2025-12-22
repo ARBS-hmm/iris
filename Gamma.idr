@@ -1,4 +1,5 @@
 module Gamma
+import Data.Vect
 
 data Level : Type where
   LZ : Level
@@ -22,6 +23,10 @@ mutual
   data Term : Type where 
     NatTerm : Term
     StringTerm : Term
+    Var : Fin n -> Term 
+    App : Term -> Term -> Term
+    NatLit : Nat -> Term
+
     Lambda : Literal -> Term -> Term
 
 testTel : Telescope
