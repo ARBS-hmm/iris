@@ -17,7 +17,7 @@ mutual
     Sigma : Telescope -> Ty l -> Ty l'
 
   data Telescope : Type where
-    Empty : Telescope
+    X : Telescope
     (::) : Telescope -> (Literal, (l**Ty l)) -> Telescope
 
   data Term : Type where 
@@ -26,17 +26,15 @@ mutual
     Var : Fin n -> Term 
     App : Term -> Term -> Term
     NatLit : Nat -> Term
-
-    Lambda : Literal -> Term -> Term
+    Lambda : Literal -> Telescope -> Term -> Term
 
 testTel : Telescope
-testTel = ((Empty :: 
+testTel = ((X:: 
              (Lit "x", (LZ**NatTy))) ::
-             (Lit "y",(LZ**
-               (Pi (Empty::
-                (Lit "x", (LZ**NatTy))) NatTy
-               ))))
+             (Lit "y",(LZ**(Pi (X::(Lit "x", (LZ**NatTy))) NatTy
+               ))
+           ))
 
 testTerm : Term
-testTerm = Lambda (Lit "add") (NatTerm)
+testTerm = Lambda (Lit "add") testTel (NatTerm)
 --  
