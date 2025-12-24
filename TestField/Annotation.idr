@@ -28,21 +28,13 @@ mutual
     Uni : (l:Level) -> Term l
     (>>) : Term l -> Term m -> Term (maxLevel l m)
     Pi : Telescope -> Term l -> Term (LS l)
+    Appl : (n:Nat) -> (t : Term (LS l)) -> 
+                  arity t (Fin n) -> Term l  
 
   data Telescope : Type where
 
   arity : Term l -> type
 
 level : Term l -> Level
-level Natterm = L0
-level Stringterm = L0
-level Boolterm = L0
-level Natty = LS L0
-level Stringty = LS L0
-level Boolty = LS L0
-level (Uni l) = LS l
-level (x >> y) = LS (maxLevel (level x) (level y))
-level (Pi a b) = ?hmm
-
 typeof : Term l -> Term (LS l)
 

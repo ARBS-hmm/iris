@@ -44,5 +44,4 @@ level (x >> y) = LS (maxLevel (level x) (level y))
 level (Pi a b) = ?hmm
 
 typeof : Term l -> Term (LS l)
-
 --  
