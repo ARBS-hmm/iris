@@ -1,40 +1,38 @@
 module Gamma
 import Data.Vect
 
+public export
 data Level : Type where
   LZ : Level
   LS : Level -> Level
 
-data Literal : Type where
-  Lit : String -> Literal
+public export
+Literal : Type
+Literal = String
 
 mutual 
+  public export
   data Ty : Level -> Type where
+    TypeVar : Fin n -> (l:Level) -> Ty l
     Uni : (l:Level) -> Ty (LS l)
     NatTy : Ty LZ
     StringTy : Ty LZ
-    Pi : Telescope -> Ty l -> Ty l'
+    (>>) : Ty l -> Ty l -> Ty (LS l)
+    Pi : (Term l,Ty (LS l)) -> Ty l -> Ty l'
     Sigma : Telescope -> Ty l -> Ty l'
 
+  public export
   data Telescope : Type where
     X : Telescope
     (::) : Telescope -> (Literal, (l**Ty l)) -> Telescope
 
-  data Term : Type where 
-    NatTerm : Term
-    StringTerm : Term
-    Var : Fin n -> Term 
-    App : Term -> Term -> Term
-    NatLit : Nat -> Term
-    Lambda : Literal -> Telescope -> Term -> Term
+  public export
+  data Term : Level ->  Type where 
+    NatTerm : Term LZ
+    StringTerm : Term LZ
+    NewTerm : Literal -> (l:Level) -> Term l
+    Var : Fin n -> (l:Level) -> Term l
+    App : forall l,m,n. Term l -> Term m -> Term n
+    Lambda : Literal -> Term m -> Term (LS m)-> Term (LS m)
 
-testTel : Telescope
-testTel = ((X:: 
-             (Lit "x", (LZ**NatTy))) ::
-             (Lit "y",(LZ**(Pi (X::(Lit "x", (LZ**NatTy))) NatTy
-               ))
-           ))
-
-testTerm : Term
-testTerm = Lambda (Lit "add") testTel (NatTerm)
 --  
