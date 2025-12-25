@@ -10,3 +10,6 @@ but how do i structurally encode that App can only use indices below the length 
 hmm that seems to be the major issue here.
 
 maybe index App with something but?... no thats weird
+Maybe index App with a context itself?
+
+i cant seem to understand the difference between the ctx and telescope maybe?
