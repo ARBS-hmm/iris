@@ -1,1 +1,12 @@
-hmm
+if i dont give the type names in the telescope how do i access them? by index?
+and how am i supposed to use the debrujin indices?
+
+if i encode the telescope using indices only i also need something of the sort:
+
+(Nat::Type::(App Vect 0 1)::App Vect 0 2)
+which shows App being used to reference old variables
+
+but how do i structurally encode that App can only use indices below the length of the telescope??
+hmm that seems to be the major issue here.
+
+maybe index App with something but?... no thats weird

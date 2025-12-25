@@ -1,0 +1,6 @@
+in Apply
+
+currying ig 
+how does currying work? 
+
+

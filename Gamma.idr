@@ -18,30 +18,44 @@ maxLevel (LS l1) (LS l2) = LS (maxLevel l1 l2)
 
 mutual 
   public export
-  data Term : Level ->  Type where 
-    Natterm : Term l0 -- infer 1 less ig ... idk tf
-    Stringterm : Term l0
-    Boolterm : Term l0
-    Natty : Term (LS l0)
-    Stringty : Term (LS l0)
-    Boolty : Term (LS L0)
-    Uni : (l:Level) -> Term l
-    (>>) : Term l -> Term m -> Term (maxLevel l m)
-    Pi : Telescope -> Term l -> Term (LS l)
+  data Ctx : Nat -> Type where
+    Nil : Ctx 0
+    (.) : (c:Ctx n) -> (Term c l) -> Ctx (S n)
+    
+  lengthctx : Ctx n -> Nat
+  data Term : Ctx n -> Level -> Type where 
+    NatTy : Term [] (LS L0)
+    BoolTy : Term [] (LS L0)
+    Uni : (l:Level) -> Term [] l
 
-  data Telescope : Type where
-  arity : Term l -> type
+    Var : (i:Fin n) -> Term c (getlevel c i)
+    Lambda : Term c l -> Term c l -> Term c (maxLevel l m)
+    Pi : Term c l -> Term c m -> Term c (maxLevel l m) 
+    Sigma : Term c l -> Term c m -> Term c (maxLevel l m)
+    App : (K:Nat) -> (t:Term c (LS l)) -> Vect k (Fin (lengthctx c)) -> Term c l 
 
-level : Term l -> Level
-level Natterm = L0
-level Stringterm = L0
-level Boolterm = L0
-level Natty = LS L0
-level Stringty = LS L0
-level Boolty = LS L0
-level (Uni l) = LS l
-level (x >> y) = LS (maxLevel (level x) (level y))
-level (Pi a b) = ?hmm
+    (>>) : Term c l -> Term c m -> Term c (maxLevel l m)
 
-typeof : Term l -> Term (LS l)
---  
+  levelof : Term c l -> Level
+  levelof = ?h
+
+
+  getlevel : Ctx n -> Fin n -> Level
+  getlevel (c . x) FZ = levelof x
+  getlevel (c . x) (FS i) = getlevel c i
+--
+
+data Telescope : Ctx n -> Type where
+  TNil : Telescope c
+  (::) : (tel : Telescope c) ->
+         (ty : Term c l) ->
+         Telescope (c . ty) 
+
+record Cons (c:Ctx n) (l : Level) where
+  constructor MkCons
+  name : String
+
+
+
+
+
