@@ -30,13 +30,14 @@ mutual
     NatVar : forall c . Term LZ c NatTy
     BoolVar : forall c . Term LZ c BoolTy
     Lambda : {c : Ctx n} -> 
-             (ty : Ty l) ->
+             {ty : Ty l} ->
+             (Term l c ty) ->
              (body : Term m (c . ty) opty) -> 
              Term (maxLevel l m) c (Pi ty opty)
 
 test : Term LZ CtxNil (Pi NatTy BoolTy)
-test = Lambda NatTy BoolVar
+test = Lambda NatVar BoolVar
 
 nest : Term LZ CtxNil (Pi (Pi NatTy BoolTy) BoolTy)
-nest = Lambda (Pi NatTy BoolTy) BoolVar
+nest = Lambda (Lambda NatVar BoolVar) BoolVar
 
