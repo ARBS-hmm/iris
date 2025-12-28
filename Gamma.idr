@@ -37,3 +37,6 @@ mutual
 test : Term LZ CtxNil (Pi NatTy BoolTy)
 test = Lambda NatTy BoolVar
 
+nest : Term LZ CtxNil (Pi (Pi NatTy BoolTy) BoolTy)
+nest = Lambda (Pi NatTy BoolTy) BoolVar
+
