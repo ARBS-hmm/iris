@@ -1,4 +1,5 @@
 module Gamma
+import Data.Fin
 
 public export
 data Level : Type where
@@ -20,13 +21,19 @@ mutual
     CtxNil : Ctx 0
     (.): forall l. (c : Ctx n) -> Ty l-> Ctx (S n)
 
+  public export
   data Ty : (level:Level) -> Type where
-    Uni : (l:Level) -> Ty l
+    Uni : (l:Level) -> Ty (LS l)
     NatTy : Ty LZ
     BoolTy : Ty LZ
     Pi : Ty l -> Ty m -> Ty (maxLevel l m)
 
+  levelOf : Ty l -> Level 
+  lookup : Fin n -> Ctx n -> Ty l
+
+  public export
   data Term : (l : Level) -> (c : Ctx n) -> Ty l-> Type where
+    Var : (idx:Fin n) -> Term (levelOf (lookup idx c)) c (lookup idx c)
     NatVar : forall c . Term LZ c NatTy
     BoolVar : forall c . Term LZ c BoolTy
     Lambda : {c : Ctx n} -> 
