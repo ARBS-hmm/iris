@@ -37,30 +37,34 @@ mutual
     That : forall c. Bound c x -> Bound (c . new) x
 
   public export
-  data Term : (l : Level) -> (c : Ctx n) -> Ty l-> Type where
-    FreeVar : (idx:Fin n) -> Term (levelOf (lookup idx c)) c (lookup idx c)
-    BoundVar :{ty : Ty l} -> Bound c ty -> Term l c ty
-    Zero : forall c . Term LZ c NatTy
-    Suc : forall c . Term LZ c NatTy -> Term LZ c NatTy
-    True : forall c . Term LZ c BoolTy
-    False : forall c . Term LZ c BoolTy
+  data Term : {l : Level} -> (c : Ctx n) -> Ty l-> Type where
+    FreeVar : (idx:Fin n) -> Term c (lookup idx c)
+    BoundVar :{ty : Ty l} -> Bound c ty -> Term c ty
+    Zero : forall c . Term c NatTy
+    Suc : forall c . Term c NatTy -> Term c NatTy
+    True : forall c . Term c BoolTy
+    False : forall c . Term c BoolTy
     Lambda : (c : Ctx n) -> 
              (ty : Ty l)->
-             (body : Term m (c . ty) opty) -> 
-             Term (maxLevel l m) c (Pi ty opty)
+             (body : Term (c . ty) opty) -> 
+             Term c (Pi ty opty)
+    App : forall l, m. {c:Ctx n} -> {dom : Ty l} -> {cod : Ty m} ->
+          Term c (Pi dom cod) ->
+          Term c dom ->
+          Term c cod
 
 
-test : (c:Ctx n) -> Term LZ c (Pi NatTy NatTy)
+test : (c:Ctx n) -> Term c (Pi NatTy NatTy)
 test c = Lambda c (NatTy) (
     BoundVar (This)
   )
   
-nest : (c:Ctx n) -> Term LZ c (Pi NatTy (Pi BoolTy NatTy))
+nest : (c:Ctx n) -> Term c (Pi NatTy (Pi BoolTy NatTy))
 nest c = Lambda c NatTy 
   (Lambda (c . NatTy) BoolTy 
   (BoundVar (That This)))
 
-nesti : (c:Ctx n) -> Term LZ c (Pi NatTy (Pi BoolTy BoolTy))
+nesti : (c:Ctx n) -> Term c (Pi NatTy (Pi BoolTy BoolTy))
 nesti c = Lambda c NatTy 
   (Lambda (c . NatTy) BoolTy 
   (BoundVar This))
