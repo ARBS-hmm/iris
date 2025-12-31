@@ -31,20 +31,26 @@ mutual
   levelOf : Ty l -> Level 
   lookup : Fin n -> Ctx n -> Ty l
 
+  data Bound : Ctx n -> Ty l -> Type where
+    This : Bound (c . x) x
+    That : Bound c x -> Bound (c . new) x
+
   public export
   data Term : (l : Level) -> (c : Ctx n) -> Ty l-> Type where
-    Var : (idx:Fin n) -> Term (levelOf (lookup idx c)) c (lookup idx c)
-    NatVar : forall c . Term LZ c NatTy
-    BoolVar : forall c . Term LZ c BoolTy
+    FreeVar : (idx:Fin n) -> Term (levelOf (lookup idx c)) c (lookup idx c)
+    BoundVar :{ty : Ty l} -> Bound c ty -> Term l c ty
+    Zero : forall c . Term LZ c NatTy
+    Suc : forall c . Term LZ c NatTy -> Term LZ c NatTy
+    True : forall c . Term LZ c BoolTy
+    False : forall c . Term LZ c BoolTy
     Lambda : {c : Ctx n} -> 
-             {ty : Ty l} ->
-             (Term l c ty) ->
+             (ty : Ty l)->
              (body : Term m (c . ty) opty) -> 
              Term (maxLevel l m) c (Pi ty opty)
 
 test : Term LZ CtxNil (Pi NatTy BoolTy)
-test = Lambda NatVar BoolVar
+test = Lambda (NatTy) True
 
 nest : Term LZ CtxNil (Pi (Pi NatTy BoolTy) BoolTy)
-nest = Lambda (Lambda NatVar BoolVar) BoolVar
+nest = Lambda (Pi NatTy BoolTy) True
 
