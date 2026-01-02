@@ -18,54 +18,74 @@ maxLevel (LS l1) (LS l2) = LS (maxLevel l1 l2)
 
 mutual
   public export
+  record Declaration where
+    constructor MkDec
+    name : Maybe String
+    type : Ty
+
+  data Constructor : Type where
+    Con : (name : String) -> List Ty -> Constructor
+
+  public export
   data Ctx : Nat -> Type where
     CtxNil : Ctx 0
-    (.): forall l. (c : Ctx n) -> Ty l-> Ctx (S n)
+    (.): (c : Ctx n) -> Declaration -> Ctx (S n)
 
   public export
-  data Ty : (level:Level) -> Type where
-    Uni : (l:Level) -> Ty (LS l)
-    NatTy : Ty LZ
-    BoolTy : Ty LZ
-    Pi : Ty l -> Ty m -> Ty (maxLevel l m)
+  data Ty : Type where
+    Uni : Level -> Ty
+    NatTy : Ty
+    BoolTy : Ty
+    Pi : Ty -> Ty -> Ty
+    Data : String -> List Constructor -> Ty
 
-  levelOf : Ty l -> Level 
-  lookup : Fin n -> Ctx n -> Ty l
+  levelOf : Ty -> Level
+  levelOf (Uni l) = LS l
+  levelOf NatTy = LZ
+  levelOf BoolTy = LZ
+  levelOf (Pi x y) = LS (maxLevel (levelOf x) (levelOf y))
+  levelOf (Data name cons) = ?hole
 
-  data Bound : Ctx n -> Ty l -> Type where
-    This : forall c.  Bound (c . x) x
-    That : forall c. Bound c x -> Bound (c . new) x
+  lookup : Fin n -> Ctx n -> Ty
+  lookup FZ CtxNil impossible
+  lookup (FS x) CtxNil impossible
+  lookup FZ (c . (MkDec name type)) = type
+  lookup (FS y) (c . dec) = lookup y c
 
   public export
-  data Term : {l : Level} -> (c : Ctx n) -> Ty l-> Type where
-    FreeVar : (idx:Fin n) -> Term c (lookup idx c)
-    BoundVar :{ty : Ty l} -> Bound c ty -> Term c ty
-    Zero : forall c . Term c NatTy
-    Suc : forall c . Term c NatTy -> Term c NatTy
-    True : forall c . Term c BoolTy
-    False : forall c . Term c BoolTy
-    Lambda : (c : Ctx n) -> 
-             (ty : Ty l)->
-             (body : Term (c . ty) opty) -> 
-             Term c (Pi ty opty)
-    App : forall l, m. {c:Ctx n} -> {dom : Ty l} -> {cod : Ty m} ->
+  data Bound : Ctx n -> Ty -> Type where
+    This : {c : Ctx n} -> {ty : Ty} -> 
+           Bound (c . (MkDec name ty)) ty
+    That : {c : Ctx n} -> {ty : Ty} -> {dec : Declaration} -> 
+           Bound c ty -> Bound (c . dec) ty
+
+  public export
+  data Term : (c : Ctx n) -> Ty -> Type where
+    FreeVar : (idx : Fin n) -> Term c (lookup idx c)
+    BoundVar : {c : Ctx n} -> {ty : Ty} -> Bound c ty -> Term c ty
+
+    Zero : {c : Ctx n} -> Term c NatTy
+    Suc : {c : Ctx n} -> Term c NatTy -> Term c NatTy
+    True : {c : Ctx n} -> Term c BoolTy
+    False : {c : Ctx n} -> Term c BoolTy
+    Lambda : {c : Ctx n} -> 
+             (ty : Ty) ->
+             (body : Term (c . (MkDec Nothing ty)) retTy) -> 
+             Term c (Pi ty retTy)
+    App : {c : Ctx n} -> {dom : Ty} -> {cod : Ty} ->
           Term c (Pi dom cod) ->
           Term c dom ->
           Term c cod
 
+test : {c : Ctx n} -> Term c (Pi NatTy NatTy)
+test = Lambda NatTy (BoundVar This)
 
-test : (c:Ctx n) -> Term c (Pi NatTy NatTy)
-test c = Lambda c (NatTy) (
-    BoundVar (This)
-  )
-  
-nest : (c:Ctx n) -> Term c (Pi NatTy (Pi BoolTy NatTy))
-nest c = Lambda c NatTy 
-  (Lambda (c . NatTy) BoolTy 
-  (BoundVar (That This)))
+nest : {c : Ctx n} -> Term c (Pi NatTy (Pi BoolTy NatTy))
+nest = Lambda NatTy 
+       (Lambda BoolTy 
+         (BoundVar (That This)))
 
-nesti : (c:Ctx n) -> Term c (Pi NatTy (Pi BoolTy BoolTy))
-nesti c = Lambda c NatTy 
-  (Lambda (c . NatTy) BoolTy 
-  (BoundVar This))
-
+nesti : {c : Ctx n} -> Term c (Pi NatTy (Pi BoolTy BoolTy))
+nesti = Lambda NatTy 
+        (Lambda BoolTy 
+          (BoundVar This))
