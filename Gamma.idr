@@ -50,7 +50,7 @@ mutual
 
   public export
   data Term : (c : Ctx n) -> Ty -> Type where
-    Var : (idx : Fin n) -> Term c (lookup idx c)
+    Var : {c : Ctx n} -> (idx : Fin n) -> Term c (lookup idx c)
     Lambda : {c : Ctx n} -> 
              (ty : Ty) ->
              (body : Term (c . (MkDec ty)) retTy) -> 
@@ -59,32 +59,5 @@ mutual
           Term c (Pi dom cod) ->
           Term c dom ->
           Term c cod
-  public export
-  data Ext : Ctx n -> Ctx m -> Type where
-    Base : Ext c c
-    Undermine : forall decl. Ext c d -> Ext (c . decl) (d . decl)
-    Skip : forall decl. Ext c d -> Ext c (d . decl)
 
-export
-extIdx : {c : Ctx n} -> {d : Ctx m} -> Ext c d -> Fin n -> Fin m
-extIdx Base idx = idx
-extIdx (Undermine ext) FZ = FZ
-extIdx (Undermine ext) (FS idx) = FS (extIdx ext idx)
-extIdx (Skip ext) idx = FS (extIdx ext idx)
-
-test : {c : Ctx n} -> Term c (Pi NatTy NatTy)
-test = Lambda NatTy (Var FZ)
-
-nest : {c : Ctx n} -> Term c (Pi NatTy (Pi BoolTy NatTy))
-nest = Lambda NatTy 
-       (Lambda BoolTy 
-         (Var (FS FZ)))
-
-nesti : {c : Ctx n} -> Term c (Pi NatTy (Pi BoolTy BoolTy))
-nesti = Lambda NatTy 
-        (Lambda BoolTy 
-          (Var FZ))
-
-hmm : Term (((CtxNil . (MkDec NatTy)) . (MkDec BoolTy))) (Pi NatTy BoolTy)
-hmm = Lambda NatTy (Var (FS FZ))
-
+--
