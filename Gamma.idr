@@ -20,7 +20,6 @@ mutual
   public export
   record Declaration where
     constructor MkDec
-    name : Maybe String
     type : Ty
 
   data Constructor : Type where
@@ -37,25 +36,23 @@ mutual
     NatTy : Ty
     BoolTy : Ty
     Pi : Ty -> Ty -> Ty
-    Data : String -> List Constructor -> Ty
 
   levelOf : Ty -> Level
   levelOf (Uni l) = LS l
   levelOf NatTy = LZ
   levelOf BoolTy = LZ
   levelOf (Pi x y) = LS (maxLevel (levelOf x) (levelOf y))
-  levelOf (Data name cons) = ?hole
 
   lookup : Fin n -> Ctx n -> Ty
   lookup FZ CtxNil impossible
   lookup (FS x) CtxNil impossible
-  lookup FZ (c . (MkDec name type)) = type
+  lookup FZ (c . (MkDec type)) = type
   lookup (FS y) (c . dec) = lookup y c
 
   public export
   data Bound : Ctx n -> Ty -> Type where
     This : {c : Ctx n} -> {ty : Ty} -> 
-           Bound (c . (MkDec name ty)) ty
+           Bound (c . (MkDec ty)) ty
     That : {c : Ctx n} -> {ty : Ty} -> {dec : Declaration} -> 
            Bound c ty -> Bound (c . dec) ty
 
@@ -63,14 +60,9 @@ mutual
   data Term : (c : Ctx n) -> Ty -> Type where
     FreeVar : (idx : Fin n) -> Term c (lookup idx c)
     BoundVar : {c : Ctx n} -> {ty : Ty} -> Bound c ty -> Term c ty
-
-    Zero : {c : Ctx n} -> Term c NatTy
-    Suc : {c : Ctx n} -> Term c NatTy -> Term c NatTy
-    True : {c : Ctx n} -> Term c BoolTy
-    False : {c : Ctx n} -> Term c BoolTy
     Lambda : {c : Ctx n} -> 
              (ty : Ty) ->
-             (body : Term (c . (MkDec Nothing ty)) retTy) -> 
+             (body : Term (c . (MkDec ty)) retTy) -> 
              Term c (Pi ty retTy)
     App : {c : Ctx n} -> {dom : Ty} -> {cod : Ty} ->
           Term c (Pi dom cod) ->
@@ -89,3 +81,5 @@ nesti : {c : Ctx n} -> Term c (Pi NatTy (Pi BoolTy BoolTy))
 nesti = Lambda NatTy 
         (Lambda BoolTy 
           (BoundVar This))
+
+--
