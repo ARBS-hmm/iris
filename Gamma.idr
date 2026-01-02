@@ -22,9 +22,6 @@ mutual
     constructor MkDec
     type : Ty
 
-  data Constructor : Type where
-    Con : (name : String) -> List Ty -> Constructor
-
   public export
   data Ctx : Nat -> Type where
     CtxNil : Ctx 0
@@ -37,12 +34,14 @@ mutual
     BoolTy : Ty
     Pi : Ty -> Ty -> Ty
 
+  public export
   levelOf : Ty -> Level
   levelOf (Uni l) = LS l
   levelOf NatTy = LZ
   levelOf BoolTy = LZ
   levelOf (Pi x y) = LS (maxLevel (levelOf x) (levelOf y))
 
+  public export
   lookup : Fin n -> Ctx n -> Ty
   lookup FZ CtxNil impossible
   lookup (FS x) CtxNil impossible
@@ -50,16 +49,8 @@ mutual
   lookup (FS y) (c . dec) = lookup y c
 
   public export
-  data Bound : Ctx n -> Ty -> Type where
-    This : {c : Ctx n} -> {ty : Ty} -> 
-           Bound (c . (MkDec ty)) ty
-    That : {c : Ctx n} -> {ty : Ty} -> {dec : Declaration} -> 
-           Bound c ty -> Bound (c . dec) ty
-
-  public export
   data Term : (c : Ctx n) -> Ty -> Type where
-    FreeVar : (idx : Fin n) -> Term c (lookup idx c)
-    BoundVar : {c : Ctx n} -> {ty : Ty} -> Bound c ty -> Term c ty
+    Var : (idx : Fin n) -> Term c (lookup idx c)
     Lambda : {c : Ctx n} -> 
              (ty : Ty) ->
              (body : Term (c . (MkDec ty)) retTy) -> 
@@ -68,18 +59,32 @@ mutual
           Term c (Pi dom cod) ->
           Term c dom ->
           Term c cod
+  public export
+  data Ext : Ctx n -> Ctx m -> Type where
+    Base : Ext c c
+    Undermine : forall decl. Ext c d -> Ext (c . decl) (d . decl)
+    Skip : forall decl. Ext c d -> Ext c (d . decl)
+
+export
+extIdx : {c : Ctx n} -> {d : Ctx m} -> Ext c d -> Fin n -> Fin m
+extIdx Base idx = idx
+extIdx (Undermine ext) FZ = FZ
+extIdx (Undermine ext) (FS idx) = FS (extIdx ext idx)
+extIdx (Skip ext) idx = FS (extIdx ext idx)
 
 test : {c : Ctx n} -> Term c (Pi NatTy NatTy)
-test = Lambda NatTy (BoundVar This)
+test = Lambda NatTy (Var FZ)
 
 nest : {c : Ctx n} -> Term c (Pi NatTy (Pi BoolTy NatTy))
 nest = Lambda NatTy 
        (Lambda BoolTy 
-         (BoundVar (That This)))
+         (Var (FS FZ)))
 
 nesti : {c : Ctx n} -> Term c (Pi NatTy (Pi BoolTy BoolTy))
 nesti = Lambda NatTy 
         (Lambda BoolTy 
-          (BoundVar This))
+          (Var FZ))
 
---
+hmm : Term (((CtxNil . (MkDec NatTy)) . (MkDec BoolTy))) (Pi NatTy BoolTy)
+hmm = Lambda NatTy (Var (FS FZ))
+
