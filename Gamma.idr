@@ -7,7 +7,6 @@ data Level : Type where
   LZ : Level
   LS : Level -> Level
 
-public export
 DecEq Level where
   decEq LZ LZ = Yes Refl
   decEq LZ (LS _) = No (\eq => case eq of {})
@@ -50,6 +49,14 @@ data HasType : Ctx n -> Fin n -> Ty -> Type where
 
 public export
 data Term : (c : Ctx n) -> Ty -> Type where
+  NatLit :forall ctx. Nat -> Term ctx NatTy
+  BoolLit : forall ctx. Bool -> Term ctx BoolTy
+  Add : Term c NatTy -> Term c NatTy -> Term c NatTy
+  Mult : Term c NatTy -> Term c NatTy -> Term c NatTy
+  (&&) : Term c BoolTy -> Term c BoolTy -> Term c BoolTy
+  (||) : Term c BoolTy -> Term c BoolTy -> Term c BoolTy
+  If : Term c BoolTy -> Term c ty -> Term c ty -> Term c ty
+
   UniTerm : (l:Level) -> Term ctx (Uni l)
   Var : {ctx:Ctx n} ->(idx:Fin n) ->  Term ctx (index idx ctx)
   Lambda : forall ctx. (ty : Ty) ->
