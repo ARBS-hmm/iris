@@ -17,6 +17,7 @@ DecEq Level where
     decEq (LS l1) (LS l2) | (No contra) = 
       No (\eq => case eq of Refl => contra Refl)
 
+public export
 maxLevel : Level -> Level -> Level
 maxLevel LZ LZ = LZ 
 maxLevel LZ l = l
@@ -38,9 +39,11 @@ mutual
   levelOf BoolTy = LZ
   levelOf (Pi x y) = LS (maxLevel (levelOf x) (levelOf y))
 
+public export
 Ctx : Nat -> Type
 Ctx n = Vect n Ty
 
+public export
 data HasType : Ctx n -> Fin n -> Ty -> Type where
   Here : HasType (ty::c) FZ ty
   There: HasType ctx idx ty -> HasType (x::ctx) (FS idx) ty
@@ -66,6 +69,7 @@ appl : Term [(Pi NatTy BoolTy),NatTy] BoolTy
 appl = App (Var 0) (Var 1)
 
 
+public export
 data TyEq : Ty -> Ty -> Type where
   TyRefl : TyEq ty ty
   PiCong : TyEq a a' -> TyEq b b' -> TyEq (Pi a b) (Pi a' b')
@@ -84,9 +88,7 @@ checkConv (Pi a b) (Pi a' b') = do
   Just (PiCong eqA eqB)
 checkConv _ _ = Nothing
 
-typeof : {ty:Ty} -> Term c ty -> Ty
-typeof {ty} t = ty
-
+public export
 check : {actualty : Ty} -> Term ctx actualTy -> (expected : Ty) -> Bool
 check {actualty} term expected = case (checkConv actualty expected) of 
                         Just _ => True
