@@ -100,9 +100,15 @@ runShow term = show (run term)
 example : Term [NatTy] (Pi NatTy NatTy)
 example = Lambda NatTy (Var 0)
 
+func : Term [NatTy] (Pi NatTy NatTy)
+func = Lambda NatTy (Add (Var 0) (Var 1))
+
+fromTerm : Term ctx ty -> Env ctx
+fromTerm t = ?h
+
 main : IO ()
 main = do
-  let program = App example (NatLit 42)
-  let env = Cons (NatVal 1) Nil
+  let program = App func (NatLit 1)
+  let env = Cons (NatVal 3) Nil
   let result = eval env program
   putStrLn $ "Result: " ++ show result
