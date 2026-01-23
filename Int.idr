@@ -102,3 +102,24 @@ idk = Abst piNatNat (JVar 0)  -- Not Weak!
     piNatNat : Judge [] (PiT NatTy NatTy) (SortT LZ)
     piNatNat = Form NatType NatType
 
+testPiSubst : Term 0
+testPiSubst = subst (NatTerm 42) (PiT NatTy (VarT FZ))
+
+constFunc : Term 0
+constFunc = LambdaT NatTy (LambdaT NatTy (VarT (FS FZ)))  -- λx:Nat. λy:Nat. x
+
+test1 : Term 0
+test1 = subst (NatTerm 5) (PiT NatTy (VarT FZ))
+
+test2 : Term 0
+test2 = subst (NatTerm 10) (PiT NatTy (PiT (VarT FZ) (VarT (FS FZ))))
+
+test3 : Term 0
+test3 = subst (NatTerm 7) (LambdaT NatTy (PiT (VarT FZ) NatTy))
+
+test4 : Term 0
+test4 = subst (LambdaT NatTy (VarT FZ))  -- λx. x
+            (PiT NatTy (App (VarT FZ) (NatTerm 3)))
+
+test:Term 1
+test = LambdaT (PiT NatTy (VarT 1)) (VarT 0)
