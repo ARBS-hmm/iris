@@ -30,16 +30,17 @@ mutual
     Uni : Level -> Ty
     NatTy : Ty
     BoolTy : Ty
-    (>>) : (x : Ty) -> Ty -> Ty  -- Error: 'c' not in scope here
+    (>>) : (x : Ty) -> Ty -> Ty
     Pi : (x:Ty) -> (Term c x -> Ty) -> Ty
+    Eval : Ty -> Ty
+    Quote : Ty -> Ty
+    Induct : (f : Ty) -> Ty
 
   public export
   Ctx : Nat -> Type
   Ctx n = Vect n Ty
 
   public export
-
-
   data Term : (c : Ctx n) -> Ty -> Type where
     NatLit : forall ctx. Nat -> Term ctx NatTy
     BoolLit : forall ctx. Bool -> Term ctx BoolTy
@@ -53,11 +54,12 @@ mutual
     Var : {ctx : Ctx n} -> (idx : Fin n) -> Term ctx (index idx ctx)
     Lambda : forall ctx. (ty : Ty) ->
            (body : Term (ty :: ctx) retTy) ->
-           Term ctx (ty >> retTy)  -- Error: 'retTy' needs to be a function
+           Term ctx (ty >> retTy)
     App : Term ctx (dom >> cod) ->
         Term ctx dom -> 
-        Term ctx cod  -- Error: need to apply 'cod' to argument
-
+        Term ctx cod 
+    AppPi : Term ctx (Induct (Pi dom codf)) -> (arg:Term ctx dom) -> (Term ctx (codf arg))
+ 
   public export
   levelOf : Ty -> Level
   levelOf (Uni l) = LS l
@@ -65,6 +67,7 @@ mutual
   levelOf BoolTy = LZ
   levelOf (x>>y) = LS (maxLevel (levelOf x) (levelOf y))
   levelOf (Pi _ _) = LZ -- #Pending
+  levelOf (Induct _) = LZ -- Pending
 
 public export
 data HasType : Ctx n -> Fin n -> Ty -> Type where
@@ -104,3 +107,4 @@ check : {actualty : Ty} -> Term ctx actualTy -> (expected : Ty) -> Bool
 check {actualty} term expected = case (checkConv actualty expected) of 
                         Just _ => True
                         Nothing => False
+

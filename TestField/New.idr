@@ -13,11 +13,28 @@ mutual
     BoolTy : Ty n
     Pi : Ty n -> Ty (S n) -> Ty n
     AppTy : {c:Ctx n} -> (x:Ty n) -> (parseArg {c} x) -> Ty n  -- NEEDS {c}
-    Induct : (String) -> (indices : List (Ty n)) -> Ty n 
+    IndName : String -> Ty n
+    Induct : (name : String) -> (tel : Ctx arity) -> (l:Level) -> 
+             (cons : List (Con arity name)) -> Ty n
 
   data Ctx : Nat -> Type where
     Nil : Ctx 0
     (::) : Ctx n -> Ty n -> Ctx (S n)
+
+  weakenCtx : Ctx n -> Ctx (S n)
+
+  weaken : Ty n -> Ty (S n)
+  weaken NatTy = NatTy
+  weaken BoolTy = BoolTy
+  weaken (Uni l) = Uni l
+  weaken _ = ?h
+
+  data Con : Nat -> String -> Type where
+    Constructor : (name:String) -> 
+                  (arity : Nat) ->
+                  (tel : Ctx arity) ->
+                  (ret : Ty (arity+1)) -> Con arity name
+
 
   index : Fin n -> Ctx n -> Ty n
   index FZ (ctx::x) = weaken x 
@@ -32,24 +49,16 @@ mutual
            (body : Term (ctx::x) retTy) -> 
            Term ctx (Pi x retTy)
 
-  parseTy : {n:Nat} -> {c:Ctx n} -> List (Ty n) -> Type
-  parseTy {c} [] = Term c NatTy
-  parseTy {c} [Uni LZ] = Ty n
-  parseTy {c} [Uni l] = Term c (Uni (LS l))  -- l ≠ LZ
-  parseTy {c} [x] = Term c x  -- x ≠ Uni _
-  parseTy {c} (Uni LZ::xs) = (Ty n, parseTy {c} xs)
-  parseTy {c} (Uni l::xs) = (Term c (Uni (LS l)), parseTy {c} xs)  -- l ≠ LZ
-  parseTy {c} (x::xs) = (Term c x, parseTy {c} xs)  -- x ≠ Uni _
+
+  strengthen : Ty (S n) -> Ty n
+
+  parseTy : (c:Ctx n) -> (param : Ctx n) -> Type
+  parseTy c [] = ?g
+  parseTy ctx (x :: y) = (Term ctx (weaken y), parseTy ctx (weakenCtx x))
   
   parseArg : {n:Nat} -> {c:Ctx n} -> Ty n -> Type
-  parseArg {c} (Induct _ indices) = parseTy {c} indices 
+  parseArg {c} (Induct name indices _ _) = parseTy c indices
   parseArg _ = ()
-
-  weaken : Ty n -> Ty (S n)
-  weaken NatTy = NatTy
-  weaken BoolTy = BoolTy
-  weaken (Uni l) = Uni l
-  weaken _ = ?h
 
   refZero : Ty (S n) -> Bool
   refZero = ?refZeroImpl
@@ -58,28 +67,7 @@ reflect : {c:Ctx n} -> {t:Ty n} -> Term c ty -> Ty n
 reflect {t} _ = t
 
 -- #examples
-
 idFunc : {c:Ctx n} -> Term c (Pi NatTy NatTy)
 idFunc = Lambda NatTy (Var FZ)
 
-vectBool : (c:Ctx k) -> Ty k
-vectBool c = AppTy {c=c} (Induct "" [NatTy, Uni LZ]) 
-  (NatTerm 3, BoolTy)
-
-constFunc : {c:Ctx n} -> Term c (Pi NatTy (Pi BoolTy NatTy))
-constFunc = Lambda NatTy (Lambda BoolTy (Var (FS FZ)))
-
-listNat : (c:Ctx k) -> Ty k
-listNat c = AppTy {c=c} (Induct "List" [Uni LZ]) NatTy
-
-typeOfTypes : (c:Ctx k) -> Ty k
-typeOfTypes c = AppTy {c=c} (Induct "Container" [Uni (LS LZ)])
-  (UniTerm LZ)
-
-vectLengthCheck : {c:Ctx n} -> Term c 
-  (Pi NatTy 
-    (Pi (AppTy (Induct "Vector" [NatTy, Uni LZ]) (NatTerm 0, BoolTy))
-        BoolTy))
---vectLengthCheck {c }=Lambda NatTy 
-  --(Lambda (AppTy {c} (Induct "Vector" [NatTy, Uni LZ]) (NatTerm , BoolTy))
-    --(BoolTerm True))
+vect

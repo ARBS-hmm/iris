@@ -1,114 +1,92 @@
 module Int
-import Gamma
 import Data.Vect
+%default total
 
-Show Level where
-  show LZ = "0"
-  show (LS l) = ("S("++ show l ++ ")")
+data Level : Type where
+  LZ : Level
+  LS : Level -> Level
 
-Show Ty where
-  show (Uni x) = "Uni "++(show x)
-  show NatTy = "Nat"
-  show BoolTy = "Boool"
-  show (Pi x y) = (show x) ++ ">>" ++ (show y)
-
-Show (Ctx n) where
-  show ctx = show (toList ctx)
-
-Show (Term c ty) where
-  show (NatLit k) = show k
-  show (BoolLit b) = show b
-  show (Add x y) = "(" ++ show x ++ " + " ++ show y ++ ")"
-  show (Mult x y) = "(" ++ show x ++ " * " ++ show y ++ ")"
-  show (x && y) = "(" ++ show x ++ " && " ++ show y ++ ")"
-  show (x || y) = "(" ++ show x ++ " || " ++ show y ++ ")"
-  show (If cond t e) = "if " ++ show cond ++ " then " ++ show t ++ " else " ++ show e
-  show (UniTerm l) = "U" ++ show l
-  show (Var idx) = "x" ++ show (finToNat idx)
-  show (Lambda ty body) = "λ" ++ show ty ++ ". " ++ show body
-  show (App f arg) = "(" ++ show f ++ " " ++ show arg ++ ")"
-
+maxLevel : Level -> Level -> Level
+maxLevel LZ LZ = LZ
+maxLevel LZ (LS x) = LS x
+maxLevel (LS x) LZ = LS x
+maxLevel (LS x) (LS y) = maxLevel x y
 mutual
-  public export
-  data Env : Ctx n -> Type where
-    Nil : Env []
-    Cons : Value ty -> Env ctx -> Env (ty :: ctx)
+  data Ctx : Nat -> Type where
+    Nil : Ctx 0
+    (::) : Term n -> (ctx : Ctx n) -> Ctx (S n)
 
-  public export
-  data Value : Ty -> Type where
-    UniVal : Level -> Value (Uni l)
-    NatVal : Nat -> Value NatTy
-    BoolVal : Bool -> Value BoolTy
-    Closure : (ty : Ty) -> 
-              (body : Term (ty :: ctx) retTy) ->
-              (env : Env ctx) -> 
-              Value (Pi ty retTy)
+  data Term : (n : Nat) -> Type where  -- Term now knows its context size
+    SortT : Level -> Term n
+    NatTy : Term n
+    NatTerm : Nat -> Term n
+    BoolTy : Term n
+    BoolTerm : Bool -> Term n
+    VarT : Fin n -> Term n  -- Now n is bound!
+    (>>) : Term n -> Term n -> Term n
+    PiT : Term n -> Term n -> Term n
+    LambdaT : Term n -> Term (S n) -> Term n
+    App : Term n -> Term n -> Term n
 
+  data Judge : Ctx n -> Term n -> (ty : Term n) -> Type where
+    SortType : Judge c (SortT l) (SortT (LS l))
+    NatType : Judge c NatTy (SortT LZ)
+    BoolType : Judge c BoolTy (SortT LZ)
+    JNat : Judge c (NatTerm n) NatTy
+    JBool : Judge c (BoolTerm b) BoolTy
+    JVar : (idx : Fin n) -> Judge c (VarT idx) (indexTy c idx)
+    Weak : (term : Judge c x xty) -> (wellTyped : Judge c y yty) -> Judge (yty::c) (weakenTerm x) (weakenTerm xty)
 
-Show (Value ty) where
-  show (UniVal x) = "Uni " ++ show(x)
-  show (NatVal k) = show k
-  show (BoolVal x) = show x
-  show (Closure x body env) = "lambda " ++ show(x) ++ "." ++ show(body) 
+    Form : Judge c ty (SortT l) -> Judge (ty::c) (weakenTerm tyb) (SortT m) ->
+           Judge c (PiT ty tyb) (SortT (maxLevel l m))
 
-lookupEnv : Env ctx -> (idx : Fin n) -> Value (index idx ctx)
-lookupEnv [] FZ impossible
-lookupEnv [] (FS x) impossible
-lookupEnv (Cons x y) FZ = x
-lookupEnv (Cons x y) (FS z) = lookupEnv y z
+    Abst : (piExists : Judge c (PiT a b) (SortT k)) ->
+           (Judge (a::c) body (weakenTerm b)) -> 
+           Judge c (LambdaT a body) (PiT a b)
 
-eval : Env ctx -> Term ctx ty -> Value ty
-eval env (UniTerm l) = UniVal l
-eval env (Var idx) = lookupEnv env idx
-eval env (Lambda ty body) = Closure ty body env
+    Appl : (f : Judge c term (PiT domty codty)) -> 
+           (t : Judge c dom domty) -> Judge c cod codty -> Judge c (App term dom) codty
 
-eval env (App f arg) = 
-  let Closure ty body closureEnv = eval env f
-      argVal = eval env arg
-      extendedEnv = Cons argVal closureEnv
-  in eval extendedEnv body
+  weakenTerm : Term n -> Term (S n)
+  weakenTerm (VarT idx) = VarT (FS idx)
+  weakenTerm (SortT l) = SortT l
+  weakenTerm NatTy = NatTy
+  weakenTerm (NatTerm k) = NatTerm k
+  weakenTerm BoolTy = BoolTy
+  weakenTerm (BoolTerm b) = BoolTerm b
+  weakenTerm (a >> b) = weakenTerm a >> weakenTerm b
+  weakenTerm (PiT a b) = PiT (weakenTerm a) (weakenTerm b)
+  weakenTerm (LambdaT a b) = LambdaT (weakenTerm a) (weakenTerm b)
+  weakenTerm (App f a) = App (weakenTerm f) (weakenTerm a)
 
-eval env (NatLit n) = NatVal n
-eval env (BoolLit b) = BoolVal b
-eval env (Add x y) = 
-  let NatVal nx = eval env x
-      NatVal ny = eval env y
-  in NatVal (nx + ny)
-eval env (Mult x y) = 
-  let NatVal nx = eval env x
-      NatVal ny = eval env y
-  in NatVal (nx * ny)
-eval env ((&&) x y) = 
-  let BoolVal bx = eval env x
-      BoolVal by = eval env y
-  in BoolVal (bx && by)
-eval env ((||) x y) = 
-  let BoolVal bx = eval env x
-      BoolVal by = eval env y
-  in BoolVal (bx || by)
-eval env (If cond thenBranch elseBranch) = 
-  case eval env cond of
-    BoolVal True => eval env thenBranch
-    BoolVal False => eval env elseBranch
+  indexTy : (c : Ctx n) -> Fin n -> Term n 
+  indexTy [] FZ impossible
+  indexTy [] (FS x) impossible
+  indexTy (x :: ctx) FZ = weakenTerm x
+  indexTy (x :: ctx) (FS y) = weakenTerm (indexTy ctx y)
 
-run : Term [] ty -> Value ty
-run term = eval Nil term
+emptyCtx : Ctx 0
+emptyCtx = []
 
-runShow : Term [] ty -> String
-runShow term = show (run term)
+five : Judge Nil (NatTerm 5) NatTy
+five = JNat
 
-example : Term [NatTy] (Pi NatTy NatTy)
-example = Lambda NatTy (Var 0)
+innerPi : Judge (NatTy::[]) (PiT NatTy NatTy) (SortT LZ)
+innerPi = Form NatType (Weak NatType (JVar 0))
 
-func : Term [NatTy] (Pi NatTy NatTy)
-func = Lambda NatTy (Add (Var 0) (Var 1))
+innerLambda : Judge (NatTy::[]) (LambdaT NatTy (VarT 1)) (PiT NatTy NatTy)
+innerLambda = Abst innerPi bodyProof where
+      bodyProof : Judge (NatTy::NatTy::[]) (VarT 1) (weakenTerm NatTy)
+      bodyProof = JVar 1
 
-fromTerm : Term ctx ty -> Env ctx
-fromTerm t = ?h
+func : Judge [] (LambdaT NatTy (LambdaT NatTy (VarT 1))) (PiT NatTy (PiT NatTy NatTy))
+func = Abst outerPi innerLambda where
+      outerPi : Judge [] (PiT NatTy (PiT NatTy NatTy)) (SortT LZ)
+      outerPi = Form NatType innerPi  -- innerPi is the proof of PiT NatTy NatTy in context (NatTy::[])
 
-main : IO ()
-main = do
-  let program = App func (NatLit 1)
-  let env = Cons (NatVal 3) Nil
-  let result = eval env program
-  putStrLn $ "Result: " ++ show result
+idk : Judge [] (LambdaT NatTy (VarT 0)) (PiT NatTy NatTy)
+idk = Abst piNatNat (JVar 0)  -- Not Weak!
+  where
+    piNatNat : Judge [] (PiT NatTy NatTy) (SortT LZ)
+    piNatNat = Form NatType NatType
+
