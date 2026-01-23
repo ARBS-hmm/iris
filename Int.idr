@@ -23,10 +23,22 @@ mutual
     BoolTy : Term n
     BoolTerm : Bool -> Term n
     VarT : Fin n -> Term n  -- Now n is bound!
-    (>>) : Term n -> Term n -> Term n
-    PiT : Term n -> Term n -> Term n
+    PiT : Term n -> Term (S n) -> Term n
     LambdaT : Term n -> Term (S n) -> Term n
     App : Term n -> Term n -> Term n
+
+  -- #Pending
+  subst : (tosub:Term k) -> (prev:Term (S k)) -> Term k
+  subst tosub (VarT FZ) = tosub
+  subst tosub (VarT (FS x)) = VarT x
+  subst tosub (SortT x) = SortT x
+  subst tosub NatTy = NatTy
+  subst tosub (NatTerm j) = NatTerm j
+  subst tosub BoolTy = BoolTy
+  subst tosub (BoolTerm x) = BoolTerm x
+  subst tosub (PiT x y) = PiT (subst tosub x) (subst (weakenTerm tosub) y)
+  subst tosub (LambdaT x y) = LambdaT (subst tosub x) (subst (weakenTerm tosub) y)
+  subst tosub (App x y) = App (subst tosub x) (subst tosub y)
 
   data Judge : Ctx n -> Term n -> (ty : Term n) -> Type where
     SortType : Judge c (SortT l) (SortT (LS l))
@@ -37,15 +49,16 @@ mutual
     JVar : (idx : Fin n) -> Judge c (VarT idx) (indexTy c idx)
     Weak : (term : Judge c x xty) -> (wellTyped : Judge c y yty) -> Judge (yty::c) (weakenTerm x) (weakenTerm xty)
 
-    Form : Judge c ty (SortT l) -> Judge (ty::c) (weakenTerm tyb) (SortT m) ->
+    Form : Judge c ty (SortT l) -> Judge (ty::c) (tyb) (SortT m) ->
            Judge c (PiT ty tyb) (SortT (maxLevel l m))
 
     Abst : (piExists : Judge c (PiT a b) (SortT k)) ->
-           (Judge (a::c) body (weakenTerm b)) -> 
+           (Judge (a::c) body (b)) -> 
            Judge c (LambdaT a body) (PiT a b)
 
     Appl : (f : Judge c term (PiT domty codty)) -> 
-           (t : Judge c dom domty) -> Judge c cod codty -> Judge c (App term dom) codty
+           (t : Judge c dom domty) -> 
+           Judge c (App term dom) (subst dom codty)
 
   weakenTerm : Term n -> Term (S n)
   weakenTerm (VarT idx) = VarT (FS idx)
@@ -54,7 +67,6 @@ mutual
   weakenTerm (NatTerm k) = NatTerm k
   weakenTerm BoolTy = BoolTy
   weakenTerm (BoolTerm b) = BoolTerm b
-  weakenTerm (a >> b) = weakenTerm a >> weakenTerm b
   weakenTerm (PiT a b) = PiT (weakenTerm a) (weakenTerm b)
   weakenTerm (LambdaT a b) = LambdaT (weakenTerm a) (weakenTerm b)
   weakenTerm (App f a) = App (weakenTerm f) (weakenTerm a)
