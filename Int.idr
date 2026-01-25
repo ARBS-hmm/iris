@@ -33,27 +33,41 @@ mutual
     LambdaT : Term n -> Term (S n) -> Term n
     App : Term n -> Term n -> Term n
 
+
   public export
-  subst : (idx : Nat) -> (rep : Term k) -> (target : Term k) -> Term k
-  subst idx rep (SortT x) = SortT x
-  subst idx rep NatTy = NatTy
-  subst idx rep (NatTerm j) = NatTerm j
-  subst idx rep BoolTy = BoolTy
-  subst idx rep (BoolTerm x) = BoolTerm x
-  subst idx rep (VarT FZ) = rep
-  subst idx rep (VarT (FS x)) = 
-    let xNat = finToNat x in
-    if idx == xNat 
-      then rep 
-      else VarT (FS x)
-  subst idx rep (PiT dom body) = 
-    PiT (subst idx rep dom) 
-        (subst (S idx) (weakenTerm rep) body)
-  subst idx rep (LambdaT ty body) = 
-    LambdaT (subst idx rep ty) 
-            (subst (S idx) (weakenTerm rep) body)
-  subst idx rep (App f x) = 
-    App (subst idx rep f) (subst idx rep x)
+  shift : (idx,thres: Nat) -> Term k -> Term (k+idx)
+  shift idx thres (SortT x) = SortT x
+  shift idx thres NatTy = NatTy
+  shift idx thres (NatTerm j) = NatTerm j
+  shift idx thres BoolTy = BoolTy
+  shift idx thres (BoolTerm x) = BoolTerm x
+  shift idx thres (PiT x y) = PiT (shift idx thres x) (shift idx (S thres) y)
+  shift idx thres (LambdaT x y) = LambdaT (shift idx thres x) (shift idx (S thres) y)
+  shift idx thres (App x y) = App (shift idx thres x) (shift idx thres y)
+  shift idx thres (VarT x) = 
+    if (finToNat x) < thres then (VarT (weakenN idx x))
+                 else (VarT (shiftFree idx x)) where
+                   shiftFree : (idx:Nat) -> Fin k -> Fin (k + idx) 
+                   shiftFree 0 f = rewrite (plusZeroRightNeutral k) in f
+                   shiftFree (S j) f = rewrite sym (plusSuccRightSucc k j) in
+                     FS (shiftFree j f)
+  strengthen : Fin (S k) -> Fin k
+  strengthen f = ?h
+
+  public export
+  subst : (idx : Nat) -> (rep : Term k) -> (target : Term (S k)) -> Term k
+  subst idx sub (SortT x) = SortT x
+  subst idx sub NatTy = NatTy
+  subst idx sub (NatTerm j) = NatTerm j
+  subst idx sub BoolTy = BoolTy
+  subst idx sub (BoolTerm x) = BoolTerm x
+  subst idx sub (PiT x y) = PiT (subst idx sub x) (subst (S idx) (shift 1 0 sub) y)
+  subst idx sub (LambdaT x y) = LambdaT (subst idx sub x) (subst (S idx) sub y)
+  subst idx sub (App x y) = App (subst idx sub x) (subst idx sub y)
+  subst idx sub (VarT x) = case compare (finToNat x) idx of
+                                EQ => shift idx 0 sub
+                                LT => VarT x
+                                GT => VarT (strengthen x)
 
   public export
   data Judge : Ctx n -> Term n -> (ty : Term n) -> Type where
@@ -63,11 +77,10 @@ mutual
     JNat : Judge c (NatTerm n) NatTy
     JBool : Judge c (BoolTerm b) BoolTy
     JVar : (idx : Fin n) -> Judge c (VarT idx) (indexTy c idx)
-    Weak : (term : Judge c x xty) -> (wellTyped : Judge c y yty) -> Judge (yty::c) (weakenTerm x) (weakenTerm xty)
 
+    Weak : (term : Judge c x xty) -> (wellTyped : Judge c y yty) -> Judge (yty::c) (weakenTerm x) (weakenTerm xty)
     Form : Judge c ty (SortT l) -> Judge (ty::c) (tyb) (SortT m) ->
            Judge c (PiT ty tyb) (SortT (maxLevel l m))
-
     Abst : (piExists : Judge c (PiT a b) (SortT k)) ->
            (Judge (a::c) body bty) -> 
            Judge c (LambdaT a body) (PiT a bty)
