@@ -19,93 +19,79 @@ mutual
   public export
   data Ctx : Nat -> Type where
     Nil : Ctx 0
-    (::) : Term n -> (ctx : Ctx n) -> Ctx (S n)
+    (::) : Term -> (ctx : Ctx n) -> Ctx (S n)
 
   public export
-  data Term : (n : Nat) -> Type where  -- Term now knows its context size
-    SortT : Level -> Term n
-    NatTy : Term n
-    NatTerm : Nat -> Term n
-    BoolTy : Term n
-    BoolTerm : Bool -> Term n
-    VarT : Fin n -> Term n
-    PiT : Term n -> Term (S n) -> Term n
-    LambdaT : Term n -> Term (S n) -> Term n
-    App : Term n -> Term n -> Term n
-
+  data Term : Type where  -- Term now knows its context size
+    Void : Term
+    SortT : Level -> Term
+    NatTy : Term
+    NatTerm : Nat -> Term
+    BoolTy : Term
+    BoolTerm : Bool -> Term
+    VarT :Nat ->  Term
+    PiT : Term -> Term -> Term
+    LambdaT : Term -> Term -> Term
+    App : Term -> Term -> Term
+  
+  public export
+  shift : (inc,thres: Nat) -> (t:Term) -> Term
+  shift inc thres Void = Void
+  shift inc thres (SortT x) = SortT x
+  shift inc thres NatTy = NatTy
+  shift inc thres (NatTerm k) = NatTerm k
+  shift inc thres BoolTy = BoolTy
+  shift inc thres (BoolTerm x) = BoolTerm x
+  shift inc thres (PiT x y) = PiT (shift inc thres x) (shift inc (S thres) y)
+  shift inc thres (LambdaT x y) = LambdaT (shift inc thres x) (shift inc (S thres) y)
+  shift inc thres (App x y) = App (shift inc thres x) (shift inc thres y)
+  shift inc thres (VarT k) = 
+    case (compare k thres) of 
+         EQ => VarT k
+         LT => Void
+         GT => Void
 
   public export
-  shift : (idx,thres: Nat) -> Term k -> Term (k+idx)
-  shift idx thres (SortT x) = SortT x
-  shift idx thres NatTy = NatTy
-  shift idx thres (NatTerm j) = NatTerm j
-  shift idx thres BoolTy = BoolTy
-  shift idx thres (BoolTerm x) = BoolTerm x
-  shift idx thres (PiT x y) = PiT (shift idx thres x) (shift idx (S thres) y)
-  shift idx thres (LambdaT x y) = LambdaT (shift idx thres x) (shift idx (S thres) y)
-  shift idx thres (App x y) = App (shift idx thres x) (shift idx thres y)
-  shift idx thres (VarT x) = 
-    if (finToNat x) < thres then (VarT (weakenN idx x))
-                 else (VarT (shiftFree idx x)) where
-                   shiftFree : (idx:Nat) -> Fin k -> Fin (k + idx) 
-                   shiftFree 0 f = rewrite (plusZeroRightNeutral k) in f
-                   shiftFree (S j) f = rewrite sym (plusSuccRightSucc k j) in
-                     FS (shiftFree j f)
-  strengthen : Fin (S k) -> Fin k
-  strengthen f = ?h
+  subst : (idx : Nat) -> (rep : Term) -> (target : Term) -> Term
+  subst idx rep Void = Void
+  subst idx rep (SortT x) = SortT x
+  subst idx rep NatTy = NatTy
+  subst idx rep (NatTerm k) = NatTerm k
+  subst idx rep BoolTy = BoolTy
+  subst idx rep (BoolTerm x) = BoolTerm x
+  subst idx rep (PiT x y) = PiT (subst idx rep x) (subst (S idx) (shift 1 0 rep) y)
+  subst idx rep (LambdaT x y) = LambdaT (subst idx rep x) (subst (S idx) (shift 1 0 rep) y)
+  subst idx rep (App x y) = App (subst idx rep x) (subst idx rep y)
+  subst idx rep (VarT k) = 
+    case (compare k idx) of 
+         EQ => shift idx 0 rep 
+         LT => VarT k
+         GT => VarT k
 
   public export
-  subst : (idx : Nat) -> (rep : Term k) -> (target : Term (S k)) -> Term k
-  subst idx sub (SortT x) = SortT x
-  subst idx sub NatTy = NatTy
-  subst idx sub (NatTerm j) = NatTerm j
-  subst idx sub BoolTy = BoolTy
-  subst idx sub (BoolTerm x) = BoolTerm x
-  subst idx sub (PiT x y) = PiT (subst idx sub x) (subst (S idx) (shift 1 0 sub) y)
-  subst idx sub (LambdaT x y) = LambdaT (subst idx sub x) (subst (S idx) sub y)
-  subst idx sub (App x y) = App (subst idx sub x) (subst idx sub y)
-  subst idx sub (VarT x) = case compare (finToNat x) idx of
-                                EQ => shift idx 0 sub
-                                LT => VarT x
-                                GT => VarT (strengthen x)
-
-  public export
-  data Judge : Ctx n -> Term n -> (ty : Term n) -> Type where
+  data Judge : Ctx n -> Term -> (ty : Term) -> Type where
     SortType : Judge c (SortT l) (SortT (LS l))
     NatType : Judge c NatTy (SortT LZ)
     BoolType : Judge c BoolTy (SortT LZ)
     JNat : Judge c (NatTerm n) NatTy
     JBool : Judge c (BoolTerm b) BoolTy
-    JVar : (idx : Fin n) -> Judge c (VarT idx) (indexTy c idx)
+    JVar : {c : Ctx n} -> (idx : Fin n) -> 
+           Judge c (VarT (finToNat idx)) (indexTy c (finToNat idx))
 
-    Weak : (term : Judge c x xty) -> (wellTyped : Judge c y yty) -> Judge (yty::c) (weakenTerm x) (weakenTerm xty)
+    Weak : (term : Judge c x xty) -> (wellTyped : Judge c y yty) -> Judge (yty::c) x xty
     Form : Judge c ty (SortT l) -> Judge (ty::c) (tyb) (SortT m) ->
            Judge c (PiT ty tyb) (SortT (maxLevel l m))
     Abst : (piExists : Judge c (PiT a b) (SortT k)) ->
            (Judge (a::c) body bty) -> 
            Judge c (LambdaT a body) (PiT a bty)
-    Appl : (pi: Judge c fn (PiT domty (weakenTerm bty))) ->
+    Appl : (pi: Judge c fn (PiT domty bty)) ->
            (Judge c arg domty) -> Judge c (App fn arg) (subst 0 arg bty)
 
-
   public export
-  weakenTerm : Term n -> Term (S n)
-  weakenTerm (VarT idx) = VarT (FS idx)
-  weakenTerm (SortT l) = SortT l
-  weakenTerm NatTy = NatTy
-  weakenTerm (NatTerm k) = NatTerm k
-  weakenTerm BoolTy = BoolTy
-  weakenTerm (BoolTerm b) = BoolTerm b
-  weakenTerm (PiT a b) = PiT (weakenTerm a) (weakenTerm b)
-  weakenTerm (LambdaT a b) = LambdaT (weakenTerm a) (weakenTerm b)
-  weakenTerm (App f a) = App (weakenTerm f) (weakenTerm a)
-
-  public export
-  indexTy : (c : Ctx n) -> Fin n -> Term n 
-  indexTy [] FZ impossible
-  indexTy [] (FS x) impossible
-  indexTy (x :: ctx) FZ = weakenTerm x
-  indexTy (x :: ctx) (FS y) = weakenTerm (indexTy ctx y)
+  indexTy : (c : Ctx n) -> Nat -> Term 
+  indexTy [] _ = Void
+  indexTy (x :: ctx) 0 = x
+  indexTy (x :: ctx) (S k) = indexTy ctx k
 
 -- ##############################33
 
@@ -114,23 +100,3 @@ emptyCtx = []
 
 five : Judge Nil (NatTerm 5) NatTy
 five = JNat
-
-innerPi : Judge (NatTy::[]) (PiT NatTy NatTy) (SortT LZ)
-innerPi = Form NatType (Weak NatType (JVar 0))
-
-innerLambda : Judge (NatTy::[]) (LambdaT NatTy (VarT 0)) (PiT NatTy NatTy)
-innerLambda = Abst innerPi bodyProof where
-      bodyProof : Judge (NatTy::NatTy::[]) (VarT 0) (weakenTerm NatTy)
-      bodyProof = JVar 0
-
-func : Judge [] (LambdaT NatTy (LambdaT NatTy (VarT 0))) (PiT NatTy (PiT NatTy NatTy))
-func = Abst outerPi innerLambda where
-      outerPi : Judge [] (PiT NatTy (PiT NatTy NatTy)) (SortT LZ)
-      outerPi = Form NatType innerPi  -- innerPi is the proof of PiT NatTy NatTy in context (NatTy::[])
-
-idk : Judge [] (LambdaT NatTy (VarT 0)) (PiT NatTy NatTy)
-idk = Abst piNatNat (JVar 0)  -- Not Weak!
-  where
-    piNatNat : Judge [] (PiT NatTy NatTy) (SortT LZ)
-    piNatNat = Form NatType NatType
-
