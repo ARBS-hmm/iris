@@ -22,7 +22,7 @@ mutual
     (::) : Term -> (ctx : Ctx n) -> Ctx (S n)
 
   public export
-  data Term : Type where  -- Term now knows its context size
+  data Term : Type where
     Void : Term
     SortT : Level -> Term
     NatTy : Term
@@ -48,8 +48,8 @@ mutual
   shift inc thres (VarT k) = 
     case (compare k thres) of 
          EQ => VarT k
-         LT => Void
-         GT => Void
+         LT => VarT k
+         GT => VarT (k + inc)
 
   public export
   subst : (idx : Nat) -> (rep : Term) -> (target : Term) -> Term
@@ -64,9 +64,11 @@ mutual
   subst idx rep (App x y) = App (subst idx rep x) (subst idx rep y)
   subst idx rep (VarT k) = 
     case (compare k idx) of 
-         EQ => shift idx 0 rep 
-         LT => VarT k
+         EQ => shift k 0 rep 
+         LT => VarT (minus 1 k)
          GT => VarT k
+
+  betaStep : Term -> Term
 
   public export
   data Judge : Ctx n -> Term -> (ty : Term) -> Type where
@@ -100,3 +102,17 @@ emptyCtx = []
 
 five : Judge Nil (NatTerm 5) NatTy
 five = JNat
+
+identityNat : Term
+identityNat = LambdaT NatTy (VarT 0)
+
+piNN : Judge [] (PiT NatTy NatTy) (SortT LZ)
+piNN = Form NatType NatType
+
+piFn : Judge [] (LambdaT NatTy (VarT 0)) (PiT NatTy NatTy)
+piFn = Abst piNN (JVar 0)
+
+apptest : Judge [] (App (LambdaT NatTy (VarT 0)) (NatTerm 5)) NatTy
+apptest = Appl piFn JNat
+
+
