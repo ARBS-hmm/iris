@@ -23,7 +23,6 @@ mutual
 
   public export
   data Term : Type where
-    Void : Term
     SortT : Level -> Term
     NatTy : Term
     NatTerm : Nat -> Term
@@ -36,7 +35,6 @@ mutual
   
   public export
   shift : (inc,thres: Nat) -> (t:Term) -> Term
-  shift inc thres Void = Void
   shift inc thres (SortT x) = SortT x
   shift inc thres NatTy = NatTy
   shift inc thres (NatTerm k) = NatTerm k
@@ -53,7 +51,6 @@ mutual
 
   public export
   subst : (idx : Nat) -> (rep : Term) -> (target : Term) -> Term
-  subst idx rep Void = Void
   subst idx rep (SortT x) = SortT x
   subst idx rep NatTy = NatTy
   subst idx rep (NatTerm k) = NatTerm k
@@ -68,8 +65,6 @@ mutual
          LT => VarT (minus 1 k)
          GT => VarT k
 
-  betaStep : Term -> Term
-
   public export
   data Judge : Ctx n -> Term -> (ty : Term) -> Type where
     SortType : Judge c (SortT l) (SortT (LS l))
@@ -77,8 +72,10 @@ mutual
     BoolType : Judge c BoolTy (SortT LZ)
     JNat : Judge c (NatTerm n) NatTy
     JBool : Judge c (BoolTerm b) BoolTy
-    JVar : {c : Ctx n} -> (idx : Fin n) -> 
-           Judge c (VarT (finToNat idx)) (indexTy c (finToNat idx))
+
+    JVar : {c : Ctx n} -> (k : Nat) -> 
+           (f : Fin n) -> (natToFin k n = Just f) ->
+           Judge c (VarT k) (indexTy c f)
 
     Weak : (term : Judge c x xty) -> (wellTyped : Judge c y yty) -> Judge (yty::c) x xty
     Form : Judge c ty (SortT l) -> Judge (ty::c) (tyb) (SortT m) ->
@@ -90,10 +87,42 @@ mutual
            (Judge c arg domty) -> Judge c (App fn arg) (subst 0 arg bty)
 
   public export
-  indexTy : (c : Ctx n) -> Nat -> Term 
-  indexTy [] _ = Void
-  indexTy (x :: ctx) 0 = x
-  indexTy (x :: ctx) (S k) = indexTy ctx k
+  indexTy : (c : Ctx n) -> (Fin n) -> Term 
+  indexTy [] FZ impossible
+  indexTy [] (FS x) impossible
+  indexTy (x :: ctx) FZ = x
+  indexTy (x :: ctx) (FS y) = indexTy ctx y
+
+typeCheck :{n:Nat} -> (c:Ctx n) -> (t:Term) -> Maybe (ty**(Judge c t ty))
+typeCheck c (SortT x) = Just ((SortT (LS x))**(SortType))
+typeCheck c NatTy = Just ((SortT LZ)**NatType)
+typeCheck c (NatTerm k) = Just (NatTy**JNat)
+typeCheck c BoolTy = Just ((SortT LZ)**(BoolType))
+typeCheck c (BoolTerm x) = Just (BoolTy**JBool)
+typeCheck c (PiT x y) = do 
+  ((SortT l)**jx) <- typeCheck c x 
+  | _ => Nothing
+  ((SortT m)**jy) <- typeCheck (x::c) y
+  | _ => Nothing
+  pure ((SortT (maxLevel l m))**(Form jx jy))
+
+typeCheck c (LambdaT x y) = assert_total $ do -- #PENDING UNSAFE 
+  (yTy**yJudge) <- typeCheck (x::c) y
+  (piTy**piJudge) <- typeCheck c (PiT x yTy)
+  case piJudge of
+    Form domJudge codJudge => 
+      Just ((PiT x yTy) ** Abst piJudge yJudge)
+    _ => Nothing 
+
+typeCheck c (App f y) = ?jj
+
+typeCheck {n} c (VarT k) with (natToFin k n)
+  typeCheck c (VarT k) | Nothing = Nothing
+  typeCheck c (VarT k) | Just x = 
+    let pf : ((natToFin k n) = Just x )
+        pf = believe_me ()
+    in
+    Just ((indexTy c x)**(JVar k x pf))
 
 -- ##############################33
 
@@ -108,11 +137,5 @@ identityNat = LambdaT NatTy (VarT 0)
 
 piNN : Judge [] (PiT NatTy NatTy) (SortT LZ)
 piNN = Form NatType NatType
-
-piFn : Judge [] (LambdaT NatTy (VarT 0)) (PiT NatTy NatTy)
-piFn = Abst piNN (JVar 0)
-
-apptest : Judge [] (App (LambdaT NatTy (VarT 0)) (NatTerm 5)) NatTy
-apptest = Appl piFn JNat
 
 
