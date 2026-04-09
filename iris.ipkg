@@ -13,10 +13,10 @@ authors = "arbs"
 -- langversion
 
 -- packages to add to search path
--- depends =
+depends = contrib,base
 
 -- modules to install
-modules = Gamma
+modules = Int
 
 -- main file (i.e. file to load at REPL)
 -- main =

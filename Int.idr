@@ -1,11 +1,12 @@
 module Int
 import Term
+import TermEq
 import Data.Fin
 import Decidable.Equality
 %default total
 
 termEq : Term -> Term -> Bool
-termEq (SortT l1) (SortT l2) = l1 == l2  -- Assuming Level has Eq
+termEq (SortT l1) (SortT l2) = l1 == l2 
 termEq NatTy NatTy = True
 termEq (NatTerm n1) (NatTerm n2) = n1 == n2
 termEq BoolTy BoolTy = True
@@ -42,11 +43,8 @@ typeCheck c (App f y) = do
     | _ => Nothing
   (yty**jy) <- typeCheck c y
   
-  -- Use decidable equality
   case decEq a yty of
        Yes Refl => 
-         -- jy has type Judge c y yty, but we need Judge c y a
-         -- Since we have Refl : a = yty, we can transport
          let jy' = replace {p = \ty => Judge c y ty} (sym Refl) jy
          in Just ((subst 0 y b)** (Appl jf jy'))
        No _ => Nothing
@@ -72,5 +70,8 @@ identityNat = LambdaT NatTy (VarT 0)
 piNN : Judge [] (PiT NatTy NatTy) (SortT LZ)
 piNN = Form NatType NatType
 
+piNest : Judge [] (PiT (PiT NatTy NatTy) BoolTy) (SortT (LS LZ))
+
+piCurry : Judge [] (PiT NatTy (PiT NatTy BoolTy)) (SortT (LS LZ))
 
 
